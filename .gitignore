@@ -1,0 +1,13 @@
+# 编译产物
+.build/
+build/
+.swiftpm/
+*.xcodeproj/
+DerivedData/
+
+# 系统 / 编辑器
+.DS_Store
+.claude/
+
+# 图标探索稿（体积大，不入库）
+design/explorations/

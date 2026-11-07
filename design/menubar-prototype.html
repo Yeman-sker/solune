@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>日月菜单栏动画</title>
+<style>
+  :root { --bg:#F4F1EC; --card:#fff; --ink:#1F1B2E; --muted:#6E6A78; --line:rgba(0,0,0,.08); --sun:#F08A3C; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#16151B; --card:#211F28; --ink:#F2F0F5; --muted:#A09CAB; --line:rgba(255,255,255,.08); } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.6 -apple-system, "PingFang SC", sans-serif; }
+  main { max-width:1000px; margin:0 auto; padding:28px 16px 60px; }
+  h1 { font-size:22px; font-weight:600; margin:0 0 4px; }
+  .sub { color:var(--muted); margin:0 0 16px; }
+  .controls { position:sticky; top:0; z-index:5; background:var(--bg); padding:10px 0 14px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; border-bottom:1px solid var(--line); margin-bottom:20px; }
+  button { font:inherit; border:1px solid var(--line); background:var(--card); color:var(--ink); border-radius:999px; padding:6px 14px; cursor:pointer; }
+  button:active { transform:scale(.96); }
+  button.primary { background:var(--ink); color:var(--bg); border-color:transparent; }
+  .status { margin-left:auto; color:var(--muted); font-size:13px; } .status b { color:var(--ink); }
+  .layout { display:grid; grid-template-columns:260px 1fr; gap:16px; }
+  @media (max-width:760px) { .layout { grid-template-columns:1fr; } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:18px; padding:18px; }
+  .appicon img { width:100%; max-width:220px; display:block; margin:0 auto 10px; }
+  .appicon p { color:var(--muted); font-size:13px; margin:0; }
+  .bar { height:26px; border-radius:7px; display:flex; align-items:center; justify-content:flex-end; gap:16px; padding:0 12px; font-size:13px; margin-bottom:8px; }
+  .bar.l { background:#ECEBEF; color:#000; } .bar.d { background:#2A2930; color:#fff; }
+  .bar .ico { height:18px; }
+  .zoom { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px; }
+  .zoom > div { border-radius:12px; height:180px; display:flex; align-items:center; justify-content:center; }
+  .zoom .l { background:#ECEBEF; color:#000; } .zoom .d { background:#2A2930; color:#fff; }
+  .zoom .ico { height:120px; }
+  .meaning { margin-top:14px; padding:12px 14px; border-radius:12px; background:var(--bg); font-size:13px; color:var(--muted); min-height:92px; }
+  .meaning b { color:var(--ink); display:block; font-size:14px; margin-bottom:2px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; margin-top:16px; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:500; }
+  td:nth-child(3) { white-space:nowrap; font-variant-numeric:tabular-nums; }
+
+  /* ---------- 菜单栏图标 ---------- */
+  .ico { display:block; overflow:visible; cursor:pointer; }
+  .sm .dial { transform-box:view-box; transform-origin:11px 14px; }
+  .sm .rays, .sm .disc, .sm .ring { transform-box:fill-box; transform-origin:center; }
+  .sm .rays { transition:opacity .25s, transform .3s cubic-bezier(.3,1.5,.5,1); }
+  .sm[data-rays=off] .rays { opacity:0; transform:scale(.4) rotate(-30deg); }
+  .sm .ring { opacity:0; transition:opacity .4s; }
+  .sm .disc { transition:opacity .4s; }
+  .sm[data-eclipse=on] .disc { opacity:0; } .sm[data-eclipse=on] .ring { opacity:1; }
+  .sm .moon { transition:opacity .4s; }
+  .sm[data-moon=dim] .moon { opacity:.45; }
+  .sm .star { opacity:0; transition:opacity .5s; transform-box:fill-box; transform-origin:center; }
+  .sm[data-stars=dim] .star { opacity:.35; }
+  .sm[data-stars=on] .star { opacity:1; animation:twinkle 2.6s ease-in-out infinite; }
+  .sm[data-stars=on] .star.s2 { animation-delay:1.3s; }
+  .sm .mini { opacity:0; transform:translateX(4px); transition:opacity .3s, transform .45s cubic-bezier(.3,1.4,.5,1); }
+  .sm[data-mini=on] .mini { opacity:1; transform:none; }
+  .sm[data-mini=dim] .mini { opacity:.35; transform:none; animation:breathe 1.4s ease-in-out infinite; }
+  .sm .cloud, .sm .cloudCut { opacity:0; transform:translateX(-4px); transition:opacity .35s, transform .5s cubic-bezier(.3,1.3,.5,1); }
+  .sm[data-cloud=on] .cloud, .sm[data-cloud=on] .cloudCut { opacity:1; transform:none; }
+  .sm .badge { opacity:0; transform:scale(.4); transform-box:fill-box; transform-origin:center; transition:opacity .2s, transform .3s cubic-bezier(.3,1.6,.5,1); }
+  .sm .bp, .sm .be { opacity:0; }
+  .sm[data-badge=pause] .badge, .sm[data-badge=bang] .badge { opacity:1; transform:scale(1); }
+  .sm[data-badge=pause] .bp, .sm[data-badge=bang] .be { opacity:1; }
+  .sm.shine .rays { animation:shine .7s cubic-bezier(.3,1.5,.5,1); }
+  .sm.sparkle .star { animation:sparkle .6s ease-out !important; opacity:1; }
+  .sm.pop .rays { animation:pop .45s cubic-bezier(.3,1.7,.5,1); }
+  @keyframes twinkle { 0%,100% { transform:scale(1); opacity:1; } 50% { transform:scale(.55); opacity:.55; } }
+  @keyframes sparkle { 0% { transform:scale(1); } 40% { transform:scale(1.8) rotate(45deg); } 100% { transform:scale(1); } }
+  @keyframes shine { 0% { transform:none; } 45% { transform:rotate(22deg) scale(1.18); } 100% { transform:rotate(45deg); } }
+  @keyframes pop { 0% { transform:scale(.2); opacity:0; } 60% { transform:scale(1.25); opacity:1; } 100% { transform:scale(1); } }
+  @keyframes breathe { 0%,100% { opacity:.2; } 50% { opacity:.6; } }
+  @media (prefers-reduced-motion: reduce) { .sm *, .sm { animation:none !important; transition-duration:.01s !important; } }
+</style>
+<main>
+  <h1>日月 · 菜单栏动画</h1>
+  <p class="sub">笔记本屏幕里有一条地平线，地平线后面藏着一个转盘：一边是太阳，一边是月亮。太阳在上面 = 内屏亮着，月亮在上面 = 内屏在休息。用上面的按钮模拟事件；悬停图标会闪一下光，点击会轻轻拨一下转盘。</p>
+  <div class="controls">
+    <button class="primary" data-act="demo">▶ 自动演示</button>
+    <button data-act="plugExt">插入外接屏 · 仅外接</button>
+    <button data-act="plugDual">插入外接屏 · 双屏</button>
+    <button data-act="unplug">拔出外接屏</button>
+    <button data-act="wake">合盖睡眠后唤醒</button>
+    <button data-act="flap">反复插拔</button>
+    <button data-act="error">接口失效</button>
+    <button data-act="reset">重置</button>
+    <span class="status">当前：<b id="stateName">只有内屏</b></span>
+  </div>
+  <div class="layout">
+    <section class="card appicon"><img src="sunmoon.png" alt="日月 App 图标"><p>App 图标：外接屏升起太阳，笔记本落下月亮。菜单栏图标把这个画面简化成一个可以转动的日月转盘。</p></section>
+    <section class="card">
+      <div class="bar l"><span>100%</span><span class="s1"></span><span>周五 10:14</span></div>
+      <div class="bar d"><span>100%</span><span class="s2"></span><span>周五 10:14</span></div>
+      <div class="zoom"><div class="l"></div><div class="d"></div></div>
+      <div class="meaning" id="meaning"></div>
+    </section>
+  </div>
+  <section class="card" style="margin-top:16px">
+    <b>动画规格</b>
+    <table>
+      <thead><tr><th>事件</th><th>动画</th><th>时长 · 曲线</th><th>传达的信息</th></tr></thead>
+      <tbody>
+        <tr><td>只有内屏（待机）</td><td>太阳静止；每隔几秒光芒轻轻转一下</td><td>0.7s · 回弹</td><td>一切正常，不需要关心</td></tr>
+        <tr><td>发现外接屏</td><td>右侧小外接屏滑入；太阳匀速下沉约 55°，接近地平线时出现第一颗淡星</td><td>1.5s · 线性</td><td>稳定期倒计时：下沉的角度就是进度</td></tr>
+        <tr><td>内屏关闭</td><td>光芒收起，转盘继续转到 180°，月亮升起，两颗星交替闪烁</td><td>0.8s · 缓入缓出</td><td>内屏在休息；星星在闪 = 程序还在工作</td></tr>
+        <tr><td>双屏规则</td><td>下沉到一半的太阳弹回原位，外接屏保留</td><td>0.45s · 回弹</td><td>看到了外接屏，但按规则两块屏都开着</td></tr>
+        <tr><td>拔出外接屏</td><td>星星瞬间消失，转盘快速转一圈，太阳带着光芒弹出来</td><td>0.34s · 强回弹</td><td>最快的动画留给最重要的安全动作</td></tr>
+        <tr><td>唤醒后稳定期</td><td>月亮和星星变淡，转盘来回犹豫地晃，外接屏淡淡地呼吸</td><td>3s</td><td>天快亮了吗？正在等外接屏重新连上</td></tr>
+        <tr><td>反复插拔</td><td>一朵云飘过来遮住太阳，右下角暂停标志</td><td>0.5s</td><td>自动管理暂停，内屏保持开启</td></tr>
+        <tr><td>接口失效</td><td>太阳变成日食的光环，右下角感叹号</td><td>0.4s</td><td>当前系统不支持，只显示状态</td></tr>
+      </tbody>
+    </table>
+  </section>
+</main>
+
+<template id="tpl">
+<svg class="ico sm" viewBox="0 0 30 20" data-rays="on" data-stars="off" data-mini="off" data-cloud="off" data-eclipse="off" data-badge="none" data-moon="" aria-label="日月菜单栏图标">
+  <defs>
+    <clipPath id="sky-ID"><path d="M1.8 2.3 H20.2 V12.3 Q15.6 13.2 11 12.6 Q6.2 11.6 1.8 12.9 Z"/></clipPath>
+    <mask id="cut-ID" maskUnits="userSpaceOnUse" x="-5" y="-5" width="40" height="30">
+      <rect x="-5" y="-5" width="40" height="30" fill="#fff"/>
+      <path class="cloudCut" d="M5.4 10.4 H10.6 A1.15 1.15 0 0 0 10.6 8.1 A2.1 2.1 0 0 0 6.4 7.7 A1.5 1.5 0 0 0 5.4 10.4 Z" fill="#000" stroke="#000" stroke-width="1.7" stroke-linejoin="round"/>
+    </mask>
+    <mask id="moon-ID" maskUnits="userSpaceOnUse" x="0" y="10" width="22" height="20">
+      <circle cx="11" cy="20.6" r="2.5" fill="#fff"/><circle cx="12.4" cy="19.7" r="2.2" fill="#000"/>
+    </mask>
+  </defs>
+  <!-- 笔记本 -->
+  <rect x="1" y="1.5" width="20" height="14.2" rx="2.8" fill="none" stroke="currentColor" stroke-width="1.5"/>
+  <rect x="-.4" y="16.8" width="22.8" height="1.9" rx=".95" fill="currentColor"/>
+  <!-- 天空：转盘 + 星星 -->
+  <g clip-path="url(#sky-ID)">
+    <g mask="url(#cut-ID)">
+      <g class="dial" fill="currentColor">
+        <g class="sun">
+          <circle class="disc" cx="11" cy="7.4" r="2.3"/>
+          <circle class="ring" cx="11" cy="7.4" r="2.1" fill="none" stroke="currentColor" stroke-width="1"/>
+          <g class="rays" stroke="currentColor" stroke-width="1.05" stroke-linecap="round">
+            <path d="M14.3 7.4H15.5M13.33 5.07L14.18 4.22M11 4.1V2.9M8.67 5.07L7.82 4.22M7.7 7.4H6.5M8.67 9.73L7.82 10.58M11 10.7V11.9M13.33 9.73L14.18 10.58"/>
+          </g>
+        </g>
+        <g class="moon" transform="rotate(180 11 20.6)"><rect x="7" y="16" width="8" height="9" mask="url(#moon-ID)"/></g>
+      </g>
+    </g>
+    <g fill="currentColor">
+      <path class="star s1" d="M5 4.1 l.38 .95 .95 .38 -.95 .38 -.38 .95 -.38 -.95 -.95 -.38 .95 -.38z"/>
+      <path class="star s2" d="M16.9 3.6 l.3 .75 .75 .3 -.75 .3 -.3 .75 -.3 -.75 -.75 -.3 .75 -.3z"/>
+    </g>
+  </g>
+  <!-- 地平线和沙丘 -->
+  <path d="M1.8 12.9 Q6.2 11.6 11 12.6 Q15.6 13.2 20.2 12.3" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/>
+  <path d="M4.5 14.5 Q8.5 13.7 12.5 14.4" fill="none" stroke="currentColor" stroke-width=".9" stroke-linecap="round" opacity=".55"/>
+  <!-- 遮住太阳的云 -->
+  <path class="cloud" d="M5.4 10.4 H10.6 A1.15 1.15 0 0 0 10.6 8.1 A2.1 2.1 0 0 0 6.4 7.7 A1.5 1.5 0 0 0 5.4 10.4 Z" fill="none" stroke="currentColor" stroke-width="1.15" stroke-linejoin="round"/>
+  <!-- 外接屏 -->
+  <g class="mini" fill="currentColor"><rect x="23.4" y="5" width="6.2" height="7.6" rx="1.3"/><rect x="26" y="12.4" width="1" height="2.4"/><rect x="24.8" y="14.6" width="3.4" height="1.2" rx=".6"/></g>
+  <!-- 徽标 -->
+  <g class="badge"><circle cx="21" cy="16.4" r="3.3" fill="currentColor"/><g class="bp" fill="#888"><rect x="19.7" y="14.9" width="1" height="3" rx=".5"/><rect x="21.3" y="14.9" width="1" height="3" rx=".5"/></g><g class="be" fill="#888"><rect x="20.5" y="14.5" width="1" height="2.3" rx=".5"/><circle cx="21" cy="17.9" r=".6"/></g></g>
+</svg>
+</template>
+
+<script>
+const icons = [];
+let uid = 0;
+function makeIcon() {
+  const w = document.createElement('div');
+  w.innerHTML = document.getElementById('tpl').innerHTML.replaceAll('-ID', '-u' + (uid++)).trim();
+  const svg = w.firstElementChild;
+  icons.push(svg);
+  svg.addEventListener('mouseenter', () => {
+    const cls = angle % 360 === 0 ? 'shine' : 'sparkle';
+    svg.classList.remove(cls); void svg.getBoundingClientRect(); svg.classList.add(cls);
+  });
+  svg.addEventListener('animationend', e => { ['shine','sparkle','pop'].forEach(c => { if (e.animationName === c) svg.classList.remove(c); }); });
+  svg.addEventListener('click', () => { const a = angle; turn(a + 14, 110, 'ease-out'); later(110, () => turn(a - 6, 120, 'ease-in-out')); later(230, () => turn(a, 180, 'cubic-bezier(.3,1.5,.5,1)')); });
+  return svg;
+}
+document.querySelector('.s1').replaceWith(makeIcon());
+document.querySelector('.s2').replaceWith(makeIcon());
+document.querySelector('.zoom .l').append(makeIcon());
+document.querySelector('.zoom .d').append(makeIcon());
+
+/* ---------- 工具 ---------- */
+let angle = 0, timers = [], loops = [];
+const later = (ms, fn) => { const t = setTimeout(fn, ms); timers.push(t); return t; };
+const every = (ms, fn) => { const t = setInterval(fn, ms); loops.push(t); return t; };
+const stopAll = () => { timers.forEach(clearTimeout); loops.forEach(clearInterval); timers = []; loops = []; };
+function turn(deg, ms, ease) {
+  angle = deg;
+  icons.forEach(svg => { const d = svg.querySelector('.dial'); d.style.transition = `transform ${ms}ms ${ease}`; d.style.transform = `rotate(${deg}deg)`; });
+}
+function snap(deg) { // 不带动画地归位（转满一圈后回到 0°）
+  angle = deg;
+  icons.forEach(svg => { const d = svg.querySelector('.dial'); d.style.transition = 'none'; d.style.transform = `rotate(${deg}deg)`; void d.getBoundingClientRect(); });
+}
+const set = attrs => icons.forEach(svg => Object.entries(attrs).forEach(([k, v]) => svg.setAttribute('data-' + k, v)));
+const flash = cls => icons.forEach(svg => { svg.classList.remove(cls); void svg.getBoundingClientRect(); svg.classList.add(cls); });
+const base = { rays:'on', stars:'off', mini:'off', cloud:'off', eclipse:'off', badge:'none', moon:'' };
+
+/* ---------- 状态 ---------- */
+const meanings = {
+  solo:    ['只有内屏', '太阳挂在天上，光芒每隔几秒轻轻转一下。一切正常，不需要你关心。'],
+  notice:  ['发现外接屏 · 稳定期', '右边滑进一块小外接屏，太阳开始匀速下沉。下沉的角度就是 1.5 秒稳定期的进度条；快到地平线时冒出第一颗淡星。此时内屏还没有动。'],
+  ext:     ['内屏已断开', '光芒收起，转盘转过去，月亮升起，两颗星交替闪烁。月亮表示内屏在休息；星星一直在闪，表示程序还在工作。'],
+  dual:    ['双屏', '下沉到一半的太阳弹回原位：看到了外接屏，但按规则两块屏都开着。'],
+  waking:  ['外接屏拔出 · 恢复内屏', '星星瞬间消失，转盘快速转一整圈，太阳带着光芒弹出来（约 0.34 秒）。这是最快的动画，留给最重要的安全动作。'],
+  waitwake:['唤醒后稳定期', '月亮和星星变淡，转盘来回犹豫地晃，外接屏淡淡地呼吸：天快亮了吗？正在等外接屏重新连上，3 秒内不会切换。'],
+  paused:  ['自动管理已暂停', '一朵云飘过来遮住太阳，右下角出现暂停标志。检测到反复插拔，1 分钟内保持内屏开启。'],
+  error:   ['当前系统不支持', '太阳变成日食的光环，右下角感叹号。私有接口失效，只显示状态，不做任何操作。'],
+};
+function show(s) {
+  document.getElementById('stateName').textContent = meanings[s][0];
+  document.getElementById('meaning').innerHTML = `<b>${meanings[s][0]}</b>${meanings[s][1]}`;
+}
+function toSun(ms = 500) { // 不管当前角度，都朝前转到下一个太阳位
+  if (angle % 360 === 0) return;
+  const target = Math.ceil(angle / 360) * 360;
+  turn(target, ms, 'cubic-bezier(.3,1.4,.5,1)');
+  later(ms + 20, () => snap(0));
+}
+const states = {
+  solo() {
+    set(base); toSun(); show('solo');
+    every(5200, () => flash('shine'));
+  },
+  notice(next) {
+    show('notice');
+    set({ ...base, mini:'on' });
+    if (angle % 360 !== 0) snap(0);
+    later(30, () => turn(55, 1500, 'linear'));
+    later(1100, () => set({ stars:'dim' }));
+    later(1530, () => states[next]());
+  },
+  ext() {
+    show('ext');
+    set({ ...base, rays:'off', mini:'on', stars:'dim' });
+    turn(180, 800, 'cubic-bezier(.45,0,.25,1)');
+    later(520, () => set({ stars:'on' }));
+  },
+  dual() {
+    show('dual');
+    set({ ...base, mini:'on' });
+    turn(0, 450, 'cubic-bezier(.3,1.4,.5,1)');
+    every(5200, () => flash('shine'));
+  },
+  waking() {
+    show('waking');
+    set({ ...base, stars:'off', mini:'off', rays:'on' });
+    flash('pop');
+    turn(360, 340, 'cubic-bezier(.3,1.45,.5,1)');
+    later(360, () => snap(0));
+    later(700, () => { show('solo'); every(5200, () => flash('shine')); });
+  },
+  waitwake() {
+    show('waitwake');
+    snap(180);
+    set({ ...base, rays:'off', stars:'dim', mini:'dim', moon:'dim' });
+    turn(150, 750, 'ease-in-out');
+    later(750, () => turn(185, 750, 'ease-in-out'));
+    later(1500, () => turn(160, 750, 'ease-in-out'));
+    later(2250, () => turn(180, 750, 'ease-in-out'));
+    later(3000, () => states.ext());
+  },
+  paused() {
+    show('paused');
+    set({ ...base, cloud:'on', badge:'pause' }); toSun();
+  },
+  error() {
+    show('error');
+    set({ ...base, rays:'off', eclipse:'on', badge:'bang' }); toSun();
+  },
+};
+
+/* ---------- 按钮 ---------- */
+function run(name) {
+  stopAll();
+  ({ reset: () => states.solo(), plugExt: () => states.notice('ext'), plugDual: () => states.notice('dual'),
+     unplug: () => states.waking(), wake: () => states.waitwake(), flap: () => states.paused(), error: () => states.error() })[name]();
+}
+let demoT = [];
+function demo() {
+  demoT.forEach(clearTimeout); demoT = []; run('reset');
+  const steps = [[1200,'plugExt'],[6000,'unplug'],[8200,'wake'],[13500,'unplug'],[15600,'plugDual'],[20000,'flap'],[22800,'error'],[25500,'reset']];
+  for (const [t, a] of steps) demoT.push(setTimeout(() => run(a), t));
+}
+document.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', () => {
+  if (b.dataset.act === 'demo') return demo();
+  demoT.forEach(clearTimeout); demoT = []; run(b.dataset.act);
+}));
+run('reset');
+</script>
+</html>
